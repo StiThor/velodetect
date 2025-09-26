@@ -1,370 +1,116 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { db, storage, auth } from "@/lib/firebase";
-import { collection, addDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useState } from "react";
+import { auth } from "@/lib/firebase";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
 
-export default function NyLandeveiAnnonse() {
-  const [user, setUser] = useState(null);
-  const [formData, setFormData] = useState({
-    merke: "",
-    modell: "",
-    arsmodell: "",
-    girsystem: "",
-    rammetype: "",
-    storrelse: "",
-    hoyde: "",
-    service: [],
-    serviceAnnet: "",
-    tilstand: "",
-    pris: "",
-    sted: "",
-    beskrivelse: "",
-    bilder: null,
-  });
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState("login"); // "login" eller "register"
+  const [user, setUser] = useState(auth.currentUser);
 
-  // 🔥 Sjekk om bruker er logget inn
-  useEffect(() => {
-    const unsub = auth.onAuthStateChanged((u) => setUser(u));
-    return () => unsub();
-  }, []);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked, files } = e.target;
-
-    if (type === "checkbox") {
-      setFormData((prev) => {
-        const updated = checked
-          ? [...prev.service, value]
-          : prev.service.filter((item) => item !== value);
-        return { ...prev, service: updated };
-      });
-    } else if (type === "file") {
-      setFormData((prev) => ({ ...prev, bilder: files }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
-  };
+  // Hold Firebase oppdatert på brukerstatus
+  auth.onAuthStateChanged((u) => setUser(u));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     try {
-      let imageUrls = [];
-
-      // 🔼 Last opp bilder hvis det er valgt noen
-      if (formData.bilder && formData.bilder.length > 0) {
-        const uploadPromises = Array.from(formData.bilder).map(async (file) => {
-          const imageRef = ref(storage, `annonser/${Date.now()}-${file.name}`);
-          await uploadBytes(imageRef, file);
-          return await getDownloadURL(imageRef);
-        });
-        imageUrls = await Promise.all(uploadPromises);
+      if (mode === "register") {
+        await createUserWithEmailAndPassword(auth, email, password);
+        alert("Bruker opprettet og logget inn!");
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+        alert("Logget inn!");
       }
-
-      // 🔼 Lagre annonsen i Firestore
-      await addDoc(collection(db, "annonser"), {
-        ...formData,
-        bilder: imageUrls,
-        kategori: "landevei",
-        brukerId: user?.uid || null,
-        opprettet: new Date().toISOString(),
-      });
-
-      alert("Annonsen ble publisert!");
-      setFormData({
-        merke: "",
-        modell: "",
-        arsmodell: "",
-        girsystem: "",
-        rammetype: "",
-        storrelse: "",
-        hoyde: "",
-        service: [],
-        serviceAnnet: "",
-        tilstand: "",
-        pris: "",
-        sted: "",
-        beskrivelse: "",
-        bilder: null,
-      });
     } catch (error) {
-      console.error("Feil ved lagring:", error);
-      alert("Noe gikk galt ved lagring av annonsen.");
+      console.error(error);
+      alert(error.message);
     }
   };
 
-  // 🚫 Vis melding om brukeren ikke er logget inn
-  if (!user) {
-    return (
-      <main className="p-6 text-center">
-        <h1 className="text-2xl font-bold mb-4">Du må logge inn</h1>
-        <p className="text-gray-700">
-          For å publisere en annonse må du{" "}
-          <a href="/login" className="text-blue-600 underline">
-            logge inn her
-          </a>
-          .
-        </p>
-      </main>
-    );
-  }
+  const handleLogout = async () => {
+    await signOut(auth);
+    alert("Du er logget ut.");
+  };
 
   return (
-    <main className="max-w-3xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Legg til landeveisykkel</h1>
+    <main className="max-w-md mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6">Logg inn</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Merke */}
-        <div>
-          <label className="block font-medium mb-1">Merke *</label>
-          <input
-            name="merke"
-            value={formData.merke}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-            placeholder="F.eks. Canyon, Specialized"
-          />
-        </div>
-
-        {/* Modell */}
-        <div>
-          <label className="block font-medium mb-1">Modell *</label>
-          <input
-            name="modell"
-            value={formData.modell}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-            placeholder="F.eks. Ultimate CF SL 7"
-          />
-        </div>
-
-        {/* Årsmodell */}
-        <div>
-          <label className="block font-medium mb-1">Årsmodell *</label>
-          <select
-            name="arsmodell"
-            value={formData.arsmodell}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
+      {user ? (
+        <div className="space-y-4">
+          <p>Du er logget inn som <strong>{user.email}</strong></p>
+          <button
+            onClick={handleLogout}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
           >
-            <option value="">Velg årsmodell</option>
-            {Array.from({ length: 2025 - 1980 + 1 }, (_, i) => 2025 - i).map((år) => (
-              <option key={år}>{år}</option>
-            ))}
-          </select>
+            Logg ut
+          </button>
         </div>
-
-        {/* Girsystem */}
-        <div>
-          <label className="block font-medium mb-1">Girsystem *</label>
-          <select
-            name="girsystem"
-            value={formData.girsystem}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Velg girsystem</option>
-            <option>Shimano Dura-Ace Di2</option>
-            <option>Shimano Ultegra Di2</option>
-            <option>Shimano Ultegra</option>
-            <option>Shimano 105 Di2</option>
-            <option>Shimano 105</option>
-            <option>Shimano GRX Di2</option>
-            <option>Shimano GRX</option>
-            <option>Shimano Tiagra</option>
-            <option>Shimano Sora</option>
-            <option>SRAM Red eTap AXS</option>
-            <option>SRAM Force eTap AXS</option>
-            <option>SRAM Rival eTap AXS</option>
-            <option>SRAM Apex eTap AXS</option>
-            <option>SRAM Rival</option>
-            <option>Campagnolo Super Record EPS</option>
-            <option>Campagnolo Record EPS</option>
-            <option>Campagnolo Chorus EPS</option>
-            <option>Annet</option>
-          </select>
-        </div>
-
-        {/* Rammetype */}
-        <div>
-          <label className="block font-medium mb-1">Rammetype *</label>
-          <select
-            name="rammetype"
-            value={formData.rammetype}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Velg rammetype</option>
-            <option>Karbon</option>
-            <option>Aluminium</option>
-            <option>Titan</option>
-            <option>Stål</option>
-          </select>
-        </div>
-
-        {/* Størrelse */}
-        <div>
-          <label className="block font-medium mb-1">Størrelse *</label>
-          <select
-            name="storrelse"
-            value={formData.storrelse}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Størrelse</option>
-            <option>XXS</option>
-            <option>XS</option>
-            <option>S</option>
-            <option>M</option>
-            <option>ML</option>
-            <option>L</option>
-            <option>XL</option>
-            <option>XXL</option>
-          </select>
-        </div>
-
-        {/* Din høyde */}
-        <div>
-          <label className="block font-medium mb-1">Din høyde (cm) *</label>
-          <select
-            name="hoyde"
-            value={formData.hoyde}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Velg høyde</option>
-            {Array.from({ length: 210 - 150 + 1 }, (_, i) => 150 + i).map((h) => (
-              <option key={h}>{h} cm</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Tilstand */}
-        <div>
-          <label className="block font-medium mb-1">Tilstand *</label>
-          <select
-            name="tilstand"
-            value={formData.tilstand}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Velg tilstand</option>
-            <option>Som ny</option>
-            <option>Meget god</option>
-            <option>God</option>
-            <option>Brukt, men fungerende</option>
-            <option>Prosjekt/defekt</option>
-          </select>
-        </div>
-
-        {/* Service */}
-        <div>
-          <label className="block font-medium mb-1">Service / slitedeler</label>
-          <div className="space-y-1">
-            {[
-              "Kjede byttet nylig",
-              "Kassett byttet nylig",
-              "Kranklager byttet",
-              "Bremseklosser/skiver byttet",
-              "Vaiere/strøm til gir/bremser byttet",
-              "Styretape nytt",
-              "Hjulservet",
-              "Full verkstedservice siste 12 mnd",
-            ].map((item) => (
-              <label key={item} className="block">
-                <input
-                  type="checkbox"
-                  value={item}
-                  onChange={handleChange}
-                  className="mr-2"
-                />
-                {item}
-              </label>
-            ))}
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block mb-1 font-medium">E-post</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full border p-2 rounded"
+              placeholder="din@epost.no"
+            />
           </div>
-          <input
-            name="serviceAnnet"
-            value={formData.serviceAnnet}
-            placeholder="Annet (f.eks. nye dekk juli 2024)"
-            onChange={handleChange}
-            className="w-full border p-2 rounded mt-2"
-          />
-        </div>
+          <div>
+            <label className="block mb-1 font-medium">Passord</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full border p-2 rounded"
+              placeholder="••••••••"
+            />
+          </div>
 
-        {/* Pris */}
-        <div>
-          <label className="block font-medium mb-1">Pris (NOK) *</label>
-          <input
-            name="pris"
-            type="number"
-            value={formData.pris}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-            placeholder="F.eks. 25000"
-          />
-        </div>
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            {mode === "register" ? "Registrer" : "Logg inn"}
+          </button>
 
-        {/* Sted */}
-        <div>
-          <label className="block font-medium mb-1">Sted *</label>
-          <input
-            name="sted"
-            value={formData.sted}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-            placeholder="F.eks. Bergen"
-          />
-        </div>
-
-        {/* Beskrivelse */}
-        <div>
-          <label className="block font-medium mb-1">Beskrivelse *</label>
-          <textarea
-            name="beskrivelse"
-            value={formData.beskrivelse}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-            rows="4"
-            placeholder="Beskriv sykkelen kort, hva som er byttet og dens historie."
-          ></textarea>
-        </div>
-
-        {/* Bilder */}
-        <div>
-          <label className="block font-medium mb-1">Bilder (valgfritt)</label>
-          <input
-            type="file"
-            name="bilder"
-            multiple
-            accept="image/*"
-            onChange={handleChange}
-            className="w-full"
-          />
-          <p className="text-sm text-gray-600 mt-1">
-            (Legg gjerne til bilder fra høyre, venstre, foran, bak og av drivverk/hjul)
+          <p className="text-center text-sm text-gray-600 mt-2">
+            {mode === "login" ? (
+              <>
+                Har du ikke konto?{" "}
+                <button
+                  type="button"
+                  onClick={() => setMode("register")}
+                  className="text-blue-600 underline"
+                >
+                  Registrer deg her
+                </button>
+              </>
+            ) : (
+              <>
+                Har du allerede konto?{" "}
+                <button
+                  type="button"
+                  onClick={() => setMode("login")}
+                  className="text-blue-600 underline"
+                >
+                  Logg inn her
+                </button>
+              </>
+            )}
           </p>
-        </div>
-
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
-        >
-          Publiser annonse
-        </button>
-      </form>
+        </form>
+      )}
     </main>
   );
 }

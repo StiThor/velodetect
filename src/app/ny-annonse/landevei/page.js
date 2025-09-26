@@ -20,7 +20,7 @@ export default function NyLandeveiAnnonse() {
     pris: "",
     sted: "",
     beskrivelse: "",
-    bilder: null,
+    bilder: null, // blir null hvis bruker ikke laster opp noe
   });
 
   const handleChange = (e) => {
@@ -43,22 +43,20 @@ export default function NyLandeveiAnnonse() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.bilder || formData.bilder.length === 0) {
-      alert("Du må laste opp minst ett bilde.");
-      return;
-    }
-
     try {
-      // 🔼 Last opp alle bilder til Firebase Storage
-      const uploadPromises = Array.from(formData.bilder).map(async (file) => {
-        const imageRef = ref(storage, `annonser/${Date.now()}-${file.name}`);
-        await uploadBytes(imageRef, file);
-        return await getDownloadURL(imageRef);
-      });
+      let imageUrls = [];
 
-      const imageUrls = await Promise.all(uploadPromises);
+      // 🔼 Bare last opp hvis brukeren har valgt bilder
+      if (formData.bilder && formData.bilder.length > 0) {
+        const uploadPromises = Array.from(formData.bilder).map(async (file) => {
+          const imageRef = ref(storage, `annonser/${Date.now()}-${file.name}`);
+          await uploadBytes(imageRef, file);
+          return await getDownloadURL(imageRef);
+        });
+        imageUrls = await Promise.all(uploadPromises);
+      }
 
-      // 🔼 Lagre annonsen med bilde-URLer i Firestore
+      // 🔼 Lagre annonsen (selv uten bilder)
       await addDoc(collection(db, "annonser"), {
         ...formData,
         bilder: imageUrls,
@@ -322,9 +320,9 @@ export default function NyLandeveiAnnonse() {
           ></textarea>
         </div>
 
-        {/* Bilder */}
+        {/* Bilder (valgfritt) */}
         <div>
-          <label className="block font-medium mb-1">Bilder *</label>
+          <label className="block font-medium mb-1">Bilder (valgfritt)</label>
           <input
             type="file"
             name="bilder"
