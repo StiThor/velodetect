@@ -330,7 +330,6 @@ export default function NyLandeveiAnnonse() {
             name="bilder"
             multiple
             accept="image/*"
-            required
             onChange={handleChange}
             className="w-full"
           />
