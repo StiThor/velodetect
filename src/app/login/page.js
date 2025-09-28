@@ -1,21 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { auth } from "@/lib/firebase";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  onAuthStateChanged,
 } from "firebase/auth";
 
 export default function LoginPage() {
+  const [user, setUser] = useState(null);
+  const [mode, setMode] = useState("login"); // "login" eller "register"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState("login"); // "login" eller "register"
-  const [user, setUser] = useState(auth.currentUser);
 
-  // Hold Firebase oppdatert på brukerstatus
-  auth.onAuthStateChanged((u) => setUser(u));
+  // 🔥 Hold Firebase oppdatert på brukers status
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsub();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,7 +44,9 @@ export default function LoginPage() {
 
   return (
     <main className="max-w-md mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Logg inn</h1>
+      <h1 className="text-3xl font-bold mb-6">
+        {user ? "Min konto" : mode === "login" ? "Logg inn" : "Registrer ny bruker"}
+      </h1>
 
       {user ? (
         <div className="space-y-4">
@@ -53,43 +59,45 @@ export default function LoginPage() {
           </button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block mb-1 font-medium">E-post</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full border p-2 rounded"
-              placeholder="din@epost.no"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Passord</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full border p-2 rounded"
-              placeholder="••••••••"
-            />
-          </div>
+        <>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block font-medium mb-1">E-post</label>
+              <input
+                type="email"
+                className="w-full border p-2 rounded"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="din@epost.no"
+              />
+            </div>
 
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            {mode === "register" ? "Registrer" : "Logg inn"}
-          </button>
+            <div>
+              <label className="block font-medium mb-1">Passord</label>
+              <input
+                type="password"
+                className="w-full border p-2 rounded"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="Minst 6 tegn"
+              />
+            </div>
 
-          <p className="text-center text-sm text-gray-600 mt-2">
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full"
+            >
+              {mode === "login" ? "Logg inn" : "Registrer ny bruker"}
+            </button>
+          </form>
+
+          <p className="mt-4 text-center">
             {mode === "login" ? (
               <>
                 Har du ikke konto?{" "}
                 <button
-                  type="button"
                   onClick={() => setMode("register")}
                   className="text-blue-600 underline"
                 >
@@ -100,7 +108,6 @@ export default function LoginPage() {
               <>
                 Har du allerede konto?{" "}
                 <button
-                  type="button"
                   onClick={() => setMode("login")}
                   className="text-blue-600 underline"
                 >
@@ -109,7 +116,7 @@ export default function LoginPage() {
               </>
             )}
           </p>
-        </form>
+        </>
       )}
     </main>
   );

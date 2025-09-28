@@ -1,6 +1,17 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { auth } from "@/lib/firebase";
 
 export default function Home() {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((u) => setUser(u));
+    return () => unsub();
+  }, []);
+
   const categories = [
     { name: "Landevei", image: "/images/landeveissykkel.jpeg" },
     { name: "Gravel", image: "/images/gravelbike.jpg" },
@@ -18,24 +29,43 @@ export default function Home() {
 
   return (
     <main className="max-w-6xl mx-auto p-6">
-      <header className="text-center my-8">
-        <h1 className="text-4xl font-bold">Velobay</h1>
-        <p className="text-gray-600 text-lg">Syklister vet hva syklister trenger</p>
-
-        <div className="mt-6 flex flex-col items-center gap-4">
-          <input
-            type="text"
-            placeholder="Søk etter sykkel, deler eller utstyr..."
-            className="w-full md:w-2/3 px-4 py-2 border rounded-lg"
+      {/* 🔹 HEADER MED LOGO OG LOGIN */}
+      <header className="flex justify-between items-center my-6">
+        {/* Logo i midten/venstre */}
+        <div className="flex-1 text-center">
+          {/* 🖼 Logo */}
+          <img
+            src="/images/logo.png"
+            alt="Velobay Logo"
+            className="mx-auto mb-2 w-32 h-auto"
           />
-          <a
-            href="/ny-annonse"
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+        </div>
+
+        {/* 🔑 Logg inn / Min konto knapp (høyre side) */}
+        <div className="absolute right-6 top-6">
+          <Link
+            href="/login"
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
-            Legg til annonse
-          </a>
+            {user ? "Min konto" : "Logg inn"}
+          </Link>
         </div>
       </header>
+
+      {/* --- SØK + NY ANNONSE --- */}
+      <div className="mt-6 flex flex-col items-center gap-4">
+        <input
+          type="text"
+          placeholder="Søk etter sykkel, deler eller utstyr..."
+          className="w-full md:w-2/3 px-4 py-2 border rounded-lg"
+        />
+        <a
+          href="/ny-annonse"
+          className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
+        >
+          Legg til annonse
+        </a>
+      </div>
 
       {/* --- KATEGORIER --- */}
       <section className="grid grid-cols-2 md:grid-cols-3 gap-6 my-10">
